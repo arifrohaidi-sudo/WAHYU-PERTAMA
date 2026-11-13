@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Misi Gua Hira: Cahaya Wahyu</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- MediaPipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --primary-blue: #0052FF;
+            --royal-purple: #6B21A8;
+            --glow-gold: #FFD700;
+            --turquoise: #40E0D0;
+            --orange-vivid: #FF8C00;
+            --glow-white: #FFFFFF;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0a091a;
+            font-family: 'Nunito', sans-serif;
+            color: white;
+            user-select: none;
+            touch-action: none;
+        }
+
+        h1, h2, h3, .title-font {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        /* Background Layers */
+        #canvas-bg, #canvas-fx {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 1;
+        }
+        #canvas-fx { z-index: 30; }
+        
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            pointer-events: none; /* Let clicks pass to children */
+        }
+        
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            background: radial-gradient(circle at center, transparent 0%, rgba(10, 9, 26, 0.8) 100%);
+        }
+        .screen.active { display: flex; }
+
+        /* 3D Buttons & Platforms */
+        .btn-3d {
+            background: linear-gradient(135deg, var(--primary-blue), #0033aa);
+            border: 4px solid #88bbff;
+            border-radius: 999px;
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+            text-transform: uppercase;
+            box-shadow: 0 10px 0 #002277, 0 15px 20px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.4);
+            transition: all 0.1s ease;
+            cursor: pointer;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+            pointer-events: auto;
+        }
+        
+        .btn-3d:active, .btn-3d.sim-active {
+            transform: translateY(10px);
+            box-shadow: 0 0px 0 #002277, 0 5px 10px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.4);
+        }
+
+        .btn-3d.purple {
+            background: linear-gradient(135deg, var(--royal-purple), #4a148c);
+            border-color: #d1c4e9;
+            box-shadow: 0 10px 0 #311b92, 0 15px 20px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.4);
+        }
+        .btn-3d.purple:active, .btn-3d.purple.sim-active { box-shadow: 0 0px 0 #311b92, 0 5px 10px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.4); }
+
+        .btn-3d.gold {
+            background: linear-gradient(135deg, var(--orange-vivid), #ff6f00);
+            border-color: var(--glow-gold);
+            box-shadow: 0 10px 0 #e65100, 0 15px 20px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.4);
+        }
+        .btn-3d.gold:active, .btn-3d.gold.sim-active { box-shadow: 0 0px 0 #e65100, 0 5px 10px rgba(0,0,0,0.5), inset 0 5px 10px rgba(255,255,255,0.4); }
+
+        /* Floating Platforms for Quiz */
+        .platform {
+            width: 100%;
+            max-width: 300px;
+            min-height: 120px;
+            margin: 10px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: bold;
+            padding: 20px;
+            cursor: pointer;
+            box-shadow: 0 15px 0px rgba(0,0,0,0.3), 0 20px 30px rgba(0,0,0,0.5), inset 0 5px 15px rgba(255,255,255,0.3);
+            border: 4px solid rgba(255,255,255,0.5);
+            transition: transform 0.3s ease, filter 0.3s ease, box-shadow 0.3s ease;
+            animation: float 4s ease-in-out infinite;
+            pointer-events: auto;
+            position: relative;
+        }
+
+        .platform:nth-child(1) { background: linear-gradient(145deg, #00c6ff, #0072ff); animation-delay: 0s; border-color: #88ddff; box-shadow: 0 15px 0px #0055bb, 0 20px 30px rgba(0,0,0,0.5); }
+        .platform:nth-child(2) { background: linear-gradient(145deg, #da22ff, #9733ee); animation-delay: 1.2s; border-color: #f0aaff; box-shadow: 0 15px 0px #6611aa, 0 20px 30px rgba(0,0,0,0.5); }
+        .platform:nth-child(3) { background: linear-gradient(145deg, #f6d365, #ffb347); animation-delay: 2.4s; border-color: #ffeeaa; box-shadow: 0 15px 0px #cc8822, 0 20px 30px rgba(0,0,0,0.5); color: #4a2c00;}
+
+        .platform.hovered {
+            transform: scale(1.05) translateY(-10px);
+            filter: brightness(1.2);
+            box-shadow: 0 20px 0px rgba(0,0,0,0.3), 0 30px 40px rgba(255,255,255,0.3);
+        }
+        
+        .platform.selected {
+            transform: scale(0.95) translateY(15px);
+            box-shadow: 0 0px 0px rgba(0,0,0,0.3);
+        }
+
+        .platform.correct { background: linear-gradient(145deg, #00b09b, #96c93d); border-color: white; animation: none;}
+        .platform.wrong { background: linear-gradient(145deg, #ff416c, #ff4b2b); border-color: white; animation: shake 0.5s;}
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { filter: drop-shadow(0 0 15px var(--glow-gold)); }
+            50% { filter: drop-shadow(0 0 35px var(--glow-gold)); }
+        }
+        @keyframes slideIn {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .anim-slide-in { animation: slideIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        /* Cursor / Hand Tracker */
+        #hand-cursor {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            margin-left: -20px;
+            margin-top: -20px;
+            pointer-events: none;
+            z-index: 9999;
+            display: none;
+            transition: transform 0.1s;
+        }
+        .cursor-icon {
+            width: 100%; height: 100%;
+            background: radial-gradient(circle, #fff, var(--turquoise));
+            border-radius: 50%;
+            box-shadow: 0 0 20px var(--turquoise);
+            border: 2px solid white;
+        }
+        #hand-cursor.fist .cursor-icon {
+            background: radial-gradient(circle, #fff, var(--orange-vivid));
+            box-shadow: 0 0 30px var(--orange-vivid);
+            transform: scale(0.7);
+        }
+
+        /* Top Bar */
+        .top-bar {
+            position: absolute; top: 0; left: 0; width: 100%;
+            padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;
+            z-index: 20; pointer-events: none;
+        }
+        .hud-box {
+            background: rgba(0, 0, 30, 0.6); border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 15px; padding: 10px 20px; backdrop-filter: blur(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); pointer-events: auto;
+        }
+
+        .text-glow { text-shadow: 0 0 10px rgba(255,255,255,0.8), 0 0 20px var(--turquoise); }
+        .text-title-glow { text-shadow: 0 0 15px var(--glow-gold), 0 5px 5px rgba(0,0,0,0.8); }
+
+        /* Video element for mediapipe */
+        .input_video { display: none; }
+        
+        /* Mountain SVG overlay */
+        .mountain-overlay {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 40vh; z-index: 2; pointer-events: none;
+        }
+
+        /* Encyclopedia modal */
+        #modal-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 100; display: none;
+            justify-content: center; align-items: center; pointer-events: auto;
+        }
+        .modal-content {
+            background: linear-gradient(180deg, #1e1b4b, #312e81); border: 4px solid var(--glow-gold);
+            border-radius: 20px; padding: 30px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+        }
+        
+        #webcam-status {
+            position: absolute; bottom: 20px; right: 20px; z-index: 50;
+            padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .status-dot.active { background-color: #10b981; box-shadow: 0 0 10px #10b981; }
+        .status-dot.inactive { background-color: #ef4444; box-shadow: 0 0 10px #ef4444; }
+
+    </style>
+</head>
+<body>
+
+    <!-- Video Element for Camera (Hidden) -->
+    <video class="input_video" autoplay playsinline></video>
+
+    <!-- Background Canvas -->
+    <canvas id="canvas-bg"></canvas>
+    
+    <!-- Decorative Mountains (SVG) -->
+    <div class="mountain-overlay">
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+            <path fill="#0f0c29" d="M0,256L48,229.3C96,203,192,149,288,144C384,139,480,181,576,192C672,203,768,181,864,154.7C960,128,1056,96,1152,96C1248,96,1344,128,1392,144L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+            <path fill="#1a1442" d="M0,288L48,272C96,256,192,224,288,213.3C384,203,480,213,576,218.7C672,224,768,224,864,208C960,192,1056,160,1152,149.3C1248,139,1344,149,1392,154.7L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" opacity="0.6"></path>
+            <!-- Cave Glow Effect -->
+            <ellipse cx="1150" cy="220" rx="60" ry="40" fill="url(#caveGlow)" opacity="0.8"/>
+            <defs>
+                <radialGradient id="caveGlow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                    <stop offset="0%" stop-color="#FFD700" stop-opacity="0.9" />
+                    <stop offset="50%" stop-color="#FF8C00" stop-opacity="0.4" />
+                    <stop offset="100%" stop-color="#0f0c29" stop-opacity="0" />
+                </radialGradient>
+            </defs>
+        </svg>
+    </div>
+
+    <!-- Effects Canvas (Lightning, Particles) -->
+    <canvas id="canvas-fx"></canvas>
+
+    <!-- Virtual Hand Cursor -->
+    <div id="hand-cursor"><div class="cursor-icon"></div></div>
+
+    <!-- UI Layer -->
+    <div id="ui-layer">
+        
+        <!-- Webcam Status -->
+        <div id="webcam-status" class="hud-box">
+            <div class="status-dot inactive" id="cam-dot"></div>
+            <span id="cam-text">MOD SENTUH/KLIK</span>
+        </div>
+
+        <!-- 1. MAIN MENU SCREEN -->
+        <div id="screen-menu" class="screen active">
+            <div class="anim-slide-in text-center flex flex-col items-center">
+                <h2 class="title-font text-3xl md:text-5xl text-glow text-blue-300 mb-2 tracking-wider uppercase">Pengembaraan Mengenali Wahyu Pertama</h2>
+                <h1 class="title-font text-6xl md:text-8xl text-title-glow text-yellow-400 mb-12" style="animation: pulse-glow 3s infinite;">MISI GUA HIRA</h1>
+                
+                <div class="flex flex-col gap-6 w-full max-w-md">
+                    <button class="btn-3d gold text-3xl py-4" onclick="startGame()">MULA PENGEMBARAAN</button>
+                    <button class="btn-3d purple text-2xl" onclick="showTutorial()">CARA BERMAIN</button>
+                    <button class="btn-3d text-2xl" onclick="showEncyclopedia()">ENSIKLOPEDIA SIRAH</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. STORY INTRO SCREEN -->
+        <div id="screen-story" class="screen">
+            <div class="anim-slide-in hud-box max-w-3xl text-center p-10">
+                <h2 class="title-font text-4xl text-yellow-400 mb-6">Malam Yang Penuh Keberkatan</h2>
+                <p class="text-2xl leading-relaxed mb-6">"Pada suatu malam yang penuh keberkatan, satu peristiwa agung berlaku dalam sejarah Islam. Rasulullah SAW menerima wahyu pertama ketika berada di Gua Hira."</p>
+                <p class="text-2xl leading-relaxed text-blue-300 mb-8">"Adakah kamu bersedia menyertai pengembaraan untuk mengetahui rahsia peristiwa tersebut?"</p>
+                
+                <div class="bg-blue-900 bg-opacity-50 p-6 rounded-xl border border-blue-400 mb-8 text-left inline-block">
+                    <h3 class="text-xl text-yellow-300 mb-3 font-bold">MISI KAMU:</h3>
+                    <ul class="text-lg list-disc pl-5 space-y-2">
+                        <li>Mengenali tempat turunnya wahyu pertama.</li>
+                        <li>Mengenali malaikat yang menyampaikan wahyu.</li>
+                        <li>Mengetahui surah dan ayat pertama yang diturunkan.</li>
+                        <li>Memahami pengajaran daripada peristiwa tersebut.</li>
+                    </ul>
+                </div>
+                <br>
+                <button class="btn-3d gold" onclick="startStageTransition()">TERUSKAN</button>
+            </div>
+        </div>
+
+        <!-- 3. STAGE TRANSITION SCREEN -->
+        <div id="screen-stage" class="screen">
+            <div class="anim-slide-in text-center">
+                <h2 class="title-font text-6xl text-title-glow text-turquoise mb-4" id="stage-title">TAHAP 1</h2>
+                <h3 class="title-font text-4xl text-yellow-300 mb-10" id="stage-subtitle">JEJAK GUA HIRA</h3>
+                <p class="text-xl text-white opacity-80 mb-10">(Bersedia...)</p>
+                <button class="btn-3d" onclick="startQuiz()">MULA TAHAP INI</button>
+            </div>
+        </div>
+
+        <!-- 4. GAMEPLAY SCREEN -->
+        <div id="screen-game" class="screen" style="justify-content: flex-start; padding-top: 100px;">
+            <!-- Top HUD -->
+            <div class="top-bar">
+                <div class="hud-box flex flex-col">
+                    <span class="text-sm text-gray-300">MARKAH</span>
+                    <span class="title-font text-3xl text-yellow-400" id="score-display">0</span>
+                </div>
+                <div class="hud-box flex flex-col items-center">
+                    <span class="text-sm text-gray-300" id="stage-indicator">TAHAP 1</span>
+                    <div class="flex gap-1 mt-1" id="progress-dots">
+                        <!-- Dots populated via JS -->
+                    </div>
+                </div>
+                <div class="hud-box flex flex-col items-end">
+                    <span class="text-sm text-gray-300">STREAK</span>
+                    <span class="title-font text-3xl text-orange-400" id="streak-display">x0</span>
+                </div>
+            </div>
+
+            <!-- Question Area -->
+            <div class="hud-box text-center max-w-4xl mx-auto mt-4 p-8 w-[90%] anim-slide-in">
+                <h2 class="text-3xl md:text-4xl font-bold leading-snug" id="question-text">Soalan...?</h2>
+            </div>
+
+            <!-- Platforms Area -->
+            <div class="flex flex-col md:flex-row gap-6 mt-12 w-full max-w-5xl justify-center items-center px-4" id="platforms-container">
+                <div class="platform" id="plat-0" onclick="handlePlatformClick(0)">Pilihan A</div>
+                <div class="platform" id="plat-1" onclick="handlePlatformClick(1)">Pilihan B</div>
+                <div class="platform" id="plat-2" onclick="handlePlatformClick(2)">Pilihan C</div>
+            </div>
+
+            <!-- Explanation Box (Hidden initially) -->
+            <div id="explanation-box" class="hud-box mt-8 max-w-2xl text-center hidden">
+                <h3 id="exp-title" class="text-2xl font-bold mb-2">Betul!</h3>
+                <p id="exp-desc" class="text-lg text-blue-200">Penerangan di sini.</p>
+                <button class="btn-3d mt-4 py-2 px-6 text-lg" onclick="nextQuestion()">Seterusnya</button>
+            </div>
+        </div>
+
+        <!-- 5. RESULT SCREEN -->
+        <div id="screen-result" class="screen">
+            <div class="anim-slide-in hud-box max-w-2xl text-center p-10 flex flex-col items-center">
+                <h1 class="title-font text-5xl text-title-glow text-yellow-400 mb-2">TAHNIAH, PEJUANG ILMU!</h1>
+                <h2 class="title-font text-3xl text-turquoise mb-8" id="rank-title">PAKAR SIRAH</h2>
+                
+                <div class="flex justify-center gap-4 mb-8" id="stars-container">
+                    <!-- Stars SVG -->
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 w-full mb-8 text-xl">
+                    <div class="bg-blue-900 bg-opacity-50 p-4 rounded-xl border border-blue-500">
+                        <div class="text-blue-300 text-sm">MARKAH KESELURUHAN</div>
+                        <div class="text-3xl font-bold text-white" id="final-score">0</div>
+                    </div>
+                    <div class="bg-blue-900 bg-opacity-50 p-4 rounded-xl border border-blue-500">
+                        <div class="text-blue-300 text-sm">PENCAPAIAN</div>
+                        <div class="text-3xl font-bold text-white" id="final-percent">0%</div>
+                    </div>
+                    <div class="bg-green-900 bg-opacity-50 p-4 rounded-xl border border-green-500">
+                        <div class="text-green-300 text-sm">JAWAPAN BETUL</div>
+                        <div class="text-2xl font-bold text-white" id="final-correct">0</div>
+                    </div>
+                    <div class="bg-red-900 bg-opacity-50 p-4 rounded-xl border border-red-500">
+                        <div class="text-red-300 text-sm">JAWAPAN SALAH</div>
+                        <div class="text-2xl font-bold text-white" id="final-wrong">0</div>
+                    </div>
+                </div>
+
+                <p class="text-xl italic text-gray-300 mb-8 max-w-lg">"Ilmu ialah cahaya yang membimbing kehidupan. Teruskan membaca, belajar dan mengamalkan ilmu."</p>
+
+                <div class="flex gap-4">
+                    <button class="btn-3d gold" onclick="resetGame()">MAIN SEMULA</button>
+                    <button class="btn-3d" onclick="goHome()">MENU UTAMA</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-overlay">
+        <!-- Tutorial -->
+        <div id="modal-tutorial" class="modal-content" style="display: none;">
+            <h2 class="title-font text-3xl text-yellow-400 mb-4 border-b border-white/20 pb-2">CARA BERMAIN</h2>
+            <div class="space-y-4 text-lg">
+                <p><strong>1. Kamera (Pilihan):</strong> Jika anda membenarkan akses kamera, anda boleh bermain menggunakan pergerakan tangan!</p>
+                <ul class="list-disc pl-5 text-blue-200">
+                    <li>Buka tapak tangan untuk mengawal sasaran.</li>
+                    <li>Halakan pada jawapan yang betul.</li>
+                    <li>Genggam tangan (clench fist) untuk menembak kuasa petir!</li>
+                </ul>
+                <p><strong>2. Tetikus / Skrin Sentuh:</strong> Anda juga boleh menggunakan tetikus atau menyentuh skrin terus pada pilihan jawapan.</p>
+                <p><strong>3. Ganjaran:</strong> Jawab dengan pantas dan betul berturut-turut untuk mendapat <em>Combo Bonus!</em></p>
+            </div>
+            <div class="mt-6 text-center">
+                <button class="btn-3d text-lg py-2 px-6" onclick="closeModal()">FAHAM</button>
+            </div>
+        </div>
+
+        <!-- Encyclopedia -->
+        <div id="modal-encyclopedia" class="modal-content" style="display: none;">
+            <h2 class="title-font text-3xl text-yellow-400 mb-4 border-b border-white/20 pb-2">ENSIKLOPEDIA SIRAH</h2>
+            <div class="space-y-4 text-lg text-gray-200 h-64 overflow-y-auto pr-2">
+                <p><strong class="text-white">Peristiwa Wahyu Pertama:</strong> Berlaku pada 17 Ramadan, ketika Nabi Muhammad SAW berumur 40 tahun.</p>
+                <p><strong class="text-white">Gua Hira:</strong> Terletak di Jabal Nur, Makkah. Tempat yang sunyi di mana Baginda mengasingkan diri (bertahannuth) untuk beribadah.</p>
+                <p><strong class="text-white">Malaikat Jibril:</strong> Malaikat yang ditugaskan oleh Allah SWT untuk menyampaikan wahyu kepada para nabi.</p>
+                <p><strong class="text-white">Iqra':</strong> Bermaksud "Bacalah". Ia merupakan perintah pertama yang menunjukkan betapa pentingnya ilmu pengetahuan dalam Islam.</p>
+                <p><strong class="text-white">Surah al-'Alaq:</strong> 5 ayat pertama surah ini merupakan wahyu pertama yang diturunkan, menceritakan tentang penciptaan manusia daripada segumpal darah.</p>
+            </div>
+            <div class="mt-6 text-center">
+                <button class="btn-3d text-lg py-2 px-6" onclick="closeModal()">TUTUP</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME LOGIC SCRIPT -->
+    <script>
+        // --- 1. GAME DATA ---
+        const rawQuestions = [
+            {
+                q: "Di manakah Rasulullah SAW menerima wahyu pertama?",
+                opts: ["Gua Thur", "Gua Hira", "Masjid Nabawi"],
+                ans: "Gua Hira",
+                exp: "Rasulullah SAW sedang bertafakur (mengasingkan diri) di Gua Hira, Jabal Nur apabila didatangi Malaikat Jibril."
+            },
+            {
+                q: "Siapakah malaikat yang menyampaikan wahyu pertama kepada Rasulullah SAW?",
+                opts: ["Malaikat Mikail", "Malaikat Israfil", "Malaikat Jibril"],
+                ans: "Malaikat Jibril",
+                exp: "Malaikat Jibril ialah malaikat yang ditugaskan oleh Allah SWT untuk membawa wahyu."
+            },
+            {
+                q: "Apakah perkataan pertama dalam wahyu yang diturunkan?",
+                opts: ["Iqra'", "Alhamdulillah", "Subhanallah"],
+                ans: "Iqra'",
+                exp: "Iqra' bermaksud 'Bacalah'. Ia perintah pertama kepada Baginda."
+            },
+            {
+                q: "Apakah surah yang mengandungi wahyu pertama?",
+                opts: ["Surah al-Fatihah", "Surah al-'Alaq", "Surah al-Ikhlas"],
+                ans: "Surah al-'Alaq",
+                exp: "Wahyu pertama terkandung dalam awal Surah al-'Alaq."
+            },
+            {
+                q: "Berapakah bilangan ayat pertama yang diturunkan daripada Surah al-'Alaq?",
+                opts: ["3 ayat", "5 ayat", "7 ayat"],
+                ans: "5 ayat",
+                exp: "Ayat 1 hingga 5 Surah al-'Alaq diturunkan serentak pada malam tersebut."
+            },
+            {
+                q: "Apakah maksud perkataan \"Iqra'\"?",
+                opts: ["Bacalah", "Berjalanlah", "Duduklah"],
+                ans: "Bacalah",
+                exp: "Perintah membaca menunjukkan penekanan Islam terhadap pencarian ilmu."
+            },
+            {
+                q: "Siapakah isteri Rasulullah SAW yang memberikan ketenangan dan sokongan selepas peristiwa tersebut?",
+                opts: ["Saidatina Aisyah RA", "Saidatina Hafsah RA", "Saidatina Khadijah RA"],
+                ans: "Saidatina Khadijah RA",
+                exp: "Saidatina Khadijah menyelimuti dan menenangkan Baginda yang pulang dalam keadaan gementar."
+            },
+            {
+                q: "Apakah nama gua tempat Rasulullah SAW beribadah dan bertafakur sebelum menerima wahyu?",
+                opts: ["Gua Hira", "Gua Thur", "Gua Uhud"],
+                ans: "Gua Hira",
+                exp: "Gua Hira menjadi tempat pilihan Baginda untuk menjauhi kesibukan kota Makkah."
+            },
+            {
+                q: "Apakah perintah yang terkandung dalam wahyu pertama berkaitan proses penciptaan manusia?",
+                opts: ["Allah menciptakan manusia daripada segumpal darah.", "Manusia menciptakan dirinya sendiri.", "Manusia diciptakan daripada emas."],
+                ans: "Allah menciptakan manusia daripada segumpal darah.",
+                exp: "Ayat kedua berbunyi: 'Khalaqal-insana min 'alaq' (Dia telah menciptakan manusia dari segumpal darah)."
+            },
+            {
+                q: "Apakah pengajaran utama daripada wahyu pertama?",
+                opts: ["Menuntut ilmu dan membaca merupakan perkara penting dalam Islam.", "Kekayaan ialah matlamat utama kehidupan.", "Manusia tidak perlu belajar."],
+                ans: "Menuntut ilmu dan membaca merupakan perkara penting dalam Islam.",
+                exp: "Pendidikan, membaca dan menulis merupakan asas penting dalam membina tamadun Islam."
+            }
+        ];
+
+        const stages = [
+            { title: "TAHAP 1", subtitle: "JEJAK GUA HIRA", range: [0, 2] },
+            { title: "TAHAP 2", subtitle: "RAHSIA WAHYU", range: [3, 6] },
+            { title: "TAHAP 3", subtitle: "CAHAYA ILMU", range: [7, 9] }
+        ];
+
+        // Game State Variables
+        let questions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let combo = 0;
+        let correctAnswers = 0;
+        let currentStageIndex = 0;
+        let isAnswering = false;
+
+        // UI Elements
+        const screens = {
+            menu: document.getElementById('screen-menu'),
+            story: document.getElementById('screen-story'),
+            stage: document.getElementById('screen-stage'),
+            game: document.getElementById('screen-game'),
+            result: document.getElementById('screen-result')
+        };
+        const dom = {
+            qText: document.getElementById('question-text'),
+            plats: [document.getElementById('plat-0'), document.getElementById('plat-1'), document.getElementById('plat-2')],
+            expBox: document.getElementById('explanation-box'),
+            expTitle: document.getElementById('exp-title'),
+            expDesc: document.getElementById('exp-desc'),
+            score: document.getElementById('score-display'),
+            streak: document.getElementById('streak-display'),
+            stageInd: document.getElementById('stage-indicator'),
+            dots: document.getElementById('progress-dots')
+        };
+
+        // Audio Synthesis Setup
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        function initAudio() {
+            if(!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if(audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+        function playTone(freq, type, duration, vol=0.1) {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+        const sfx = {
+            click: () => { initAudio(); playTone(600, 'sine', 0.1, 0.1); },
+            hover: () => { initAudio(); playTone(800, 'sine', 0.05, 0.05); },
+            zap: () => { 
+                initAudio(); 
+                // Noise burst for lightning
+                const bufferSize = audioCtx.sampleRate * 0.2;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'highpass'; filter.frequency.value = 1000;
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+                noise.start();
+            },
+            win: () => { 
+                initAudio();
+                playTone(400, 'square', 0.1);
+                setTimeout(() => playTone(600, 'square', 0.1), 100);
+                setTimeout(() => playTone(800, 'square', 0.3), 200);
+            },
+            lose: () => {
+                initAudio();
+                playTone(300, 'sawtooth', 0.2);
+                setTimeout(() => playTone(250, 'sawtooth', 0.3), 150);
+            }
+        };
+
+        // --- 2. BACKGROUND CANVAS ---
+        const canvasBg = document.getElementById('canvas-bg');
+        const ctxBg = canvasBg.getContext('2d');
+        const canvasFx = document.getElementById('canvas-fx');
+        const ctxFx = canvasFx.getContext('2d');
+        let width, height;
+        let stars = [];
+        let particles = [];
+        let lightnings = [];
+
+        function resizeCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvasBg.width = width; canvasBg.height = height;
+            canvasFx.width = width; canvasFx.height = height;
+            initStars();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function initStars() {
+            stars = [];
+            const numStars = width < 768 ? 50 : 150;
+            for(let i=0; i<numStars; i++) {
+                stars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * (height * 0.7),
+                    r: Math.random() * 1.5,
+                    opacity: Math.random(),
+                    speed: (Math.random() * 0.02) + 0.005
+                });
+            }
+        }
+
+        function drawBackground() {
+            ctxBg.clearRect(0, 0, width, height);
+            stars.forEach(s => {
+                s.opacity += s.speed;
+                if(s.opacity > 1 || s.opacity < 0) s.speed = -s.speed;
+                ctxBg.beginPath();
+                ctxBg.arc(s.x, s.y, s.r, 0, Math.PI*2);
+                ctxBg.fillStyle = `rgba(255,255,255,${Math.abs(s.opacity)})`;
+                ctxBg.fill();
+            });
+            requestAnimationFrame(drawBackground);
+        }
+
+        // --- 3. FX ENGINE (Lightning & Particles) ---
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y;
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() - 0.5) * 10 - 2;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.02 + 0.02;
+                this.color = color;
+                this.size = Math.random() * 5 + 2;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                this.vy += 0.2; // gravity
+                this.life -= this.decay;
+            }
+            draw(ctx) {
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = this.color;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class Lightning {
+            constructor(startX, startY, endX, endY) {
+                this.segments = this.createSegments(startX, startY, endX, endY);
+                this.life = 1.0;
+            }
+            createSegments(x1, y1, x2, y2) {
+                let segs = [{x:x1, y:y1}];
+                const dist = Math.hypot(x2-x1, y2-y1);
+                const steps = Math.floor(dist / 20);
+                for(let i=1; i<steps; i++) {
+                    const t = i/steps;
+                    const mx = x1 + (x2-x1)*t + (Math.random()-0.5)*40;
+                    const my = y1 + (y2-y1)*t + (Math.random()-0.5)*40;
+                    segs.push({x:mx, y:my});
+                }
+                segs.push({x:x2, y:y2});
+                return segs;
+            }
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.moveTo(this.segments[0].x, this.segments[0].y);
+                for(let i=1; i<this.segments.length; i++) {
+                    ctx.lineTo(this.segments[i].x, this.segments[i].y);
+                }
+                ctx.strokeStyle = `rgba(0, 255, 255, ${this.life})`;
+                ctx.lineWidth = 4;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = "#0ff";
+                ctx.stroke();
+                
+                ctx.strokeStyle = `rgba(255, 255, 255, ${this.life})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function createExplosion(x, y, type) {
+            const colors = type === 'correct' ? ['#FFD700', '#FFFFFF', '#40E0D0'] : ['#FF416C', '#FF4B2B'];
+            for(let i=0; i<30; i++) {
+                particles.push(new Particle(x, y, colors[Math.floor(Math.random()*colors.length)]));
+            }
+        }
+
+        function drawFx() {
+            ctxFx.clearRect(0, 0, width, height);
+            
+            // Particles
+            for(let i=particles.length-1; i>=0; i--) {
+                const p = particles[i];
+                p.update();
+                p.draw(ctxFx);
+                if(p.life <= 0) particles.splice(i, 1);
+            }
+
+            // Lightnings
+            for(let i=lightnings.length-1; i>=0; i--) {
+                const l = lightnings[i];
+                l.draw(ctxFx);
+                l.life -= 0.1;
+                if(l.life <= 0) lightnings.splice(i, 1);
+            }
+
+            requestAnimationFrame(drawFx);
+        }
+
+        resizeCanvas();
+        drawBackground();
+        drawFx();
+
+        // --- 4. NAVIGATION LOGIC ---
+        function switchScreen(id) {
+            Object.values(screens).forEach(s => s.classList.remove('active'));
+            screens[id].classList.add('active');
+        }
+
+        function startGame() {
+            sfx.click();
+            switchScreen('story');
+            initWebcam(); // Try to init webcam here after user interaction
+        }
+
+        function showTutorial() { sfx.click(); document.getElementById('modal-overlay').style.display = 'flex'; document.getElementById('modal-tutorial').style.display = 'block'; }
+        function showEncyclopedia() { sfx.click(); document.getElementById('modal-overlay').style.display = 'flex'; document.getElementById('modal-encyclopedia').style.display = 'block'; }
+        function closeModal() {
+            sfx.click();
+            document.getElementById('modal-overlay').style.display = 'none';
+            document.getElementById('modal-tutorial').style.display = 'none';
+            document.getElementById('modal-encyclopedia').style.display = 'none';
+        }
+
+        function resetGame() {
+            sfx.click();
+            // Shuffle deep copy
+            questions = rawQuestions.map(q => ({
+                ...q,
+                opts: shuffleArray([...q.opts])
+            }));
+            
+            currentQuestionIndex = 0;
+            score = 0;
+            combo = 0;
+            correctAnswers = 0;
+            currentStageIndex = 0;
+            
+            updateHUD();
+            startStageTransition();
+        }
+
+        function goHome() {
+            sfx.click();
+            switchScreen('menu');
+        }
+
+        function startStageTransition() {
+            sfx.click();
+            if (currentQuestionIndex >= 10) {
+                showResults();
+                return;
+            }
+
+            // Find current stage based on index
+            for(let i=0; i<stages.length; i++) {
+                if(currentQuestionIndex >= stages[i].range[0] && currentQuestionIndex <= stages[i].range[1]) {
+                    currentStageIndex = i;
+                    break;
+                }
+            }
+
+            // Only show transition screen if it's the first question of a stage
+            if(currentQuestionIndex === stages[currentStageIndex].range[0]) {
+                document.getElementById('stage-title').innerText = stages[currentStageIndex].title;
+                document.getElementById('stage-subtitle').innerText = stages[currentStageIndex].subtitle;
+                switchScreen('stage');
+            } else {
+                startQuiz();
+            }
+        }
+
+        function startQuiz() {
+            sfx.click();
+            switchScreen('game');
+            loadQuestion();
+        }
+
+        // --- 5. GAMEPLAY LOGIC ---
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function loadQuestion() {
+            isAnswering = false;
+            dom.expBox.classList.add('hidden');
+            dom.plats.forEach(p => {
+                p.classList.remove('correct', 'wrong', 'selected', 'hovered');
+                p.style.pointerEvents = 'auto';
+            });
+            
+            const q = questions[currentQuestionIndex];
+            dom.qText.innerText = q.q;
+            
+            for(let i=0; i<3; i++) {
+                dom.plats[i].innerText = q.opts[i];
+            }
+            
+            updateHUD();
+        }
+
+        function updateHUD() {
+            dom.score.innerText = score;
+            dom.streak.innerText = "x" + combo;
+            dom.stageInd.innerText = stages[currentStageIndex].title;
+            
+            dom.dots.innerHTML = '';
+            for(let i=0; i<10; i++) {
+                const dot = document.createElement('div');
+                dot.className = `w-3 h-3 rounded-full ${i < currentQuestionIndex ? 'bg-turquoise' : i === currentQuestionIndex ? 'bg-yellow-400 animate-pulse' : 'bg-gray-600'}`;
+                dom.dots.appendChild(dot);
+            }
+        }
+
+        function handlePlatformClick(idx) {
+            if(isAnswering) return;
+            processAnswer(idx);
+        }
+
+        function processAnswer(idx) {
+            if(isAnswering) return;
+            isAnswering = true;
+            
+            dom.plats.forEach(p => p.style.pointerEvents = 'none');
+            const q = questions[currentQuestionIndex];
+            const selectedText = dom.plats[idx].innerText;
+            const isCorrect = selectedText === q.ans;
+            const platEl = dom.plats[idx];
+            
+            platEl.classList.add('selected');
+
+            // Find center of platform for fx
+            const rect = platEl.getBoundingClientRect();
+            const cx = rect.left + rect.width/2;
+            const cy = rect.top + rect.height/2;
+
+            if(isCorrect) {
+                sfx.win();
+                platEl.classList.add('correct');
+                createExplosion(cx, cy, 'correct');
+                correctAnswers++;
+                combo++;
+                score += 100 + (combo * 10);
+                
+                dom.expTitle.innerText = "Tepat Sekali!";
+                dom.expTitle.className = "text-2xl font-bold mb-2 text-green-400";
+            } else {
+                sfx.lose();
+                platEl.classList.add('wrong');
+                createExplosion(cx, cy, 'wrong');
+                combo = 0;
+                
+                // Highlight correct answer
+                for(let i=0; i<3; i++) {
+                    if(dom.plats[i].innerText === q.ans) {
+                        dom.plats[i].classList.add('correct');
+                    }
+                }
+                
+                dom.expTitle.innerText = "Belum Tepat!";
+                dom.expTitle.className = "text-2xl font-bold mb-2 text-red-400";
+            }
+
+            updateHUD();
+            dom.expDesc.innerText = q.exp;
+            dom.expBox.classList.remove('hidden');
+            dom.expBox.classList.add('anim-slide-in');
+        }
+
+        function nextQuestion() {
+            sfx.click();
+            currentQuestionIndex++;
+            startStageTransition();
+        }
+
+        function showResults() {
+            switchScreen('result');
+            document.getElementById('final-score').innerText = score;
+            const pct = Math.round((correctAnswers/10) * 100);
+            document.getElementById('final-percent').innerText = pct + "%";
+            document.getElementById('final-correct').innerText = correctAnswers;
+            document.getElementById('final-wrong').innerText = 10 - correctAnswers;
+
+            let rank = "";
+            let starsHTML = "";
+            let numStars = 0;
+
+            if(pct >= 90) { rank = "PAKAR SIRAH"; numStars = 3; }
+            else if(pct >= 70) { rank = "PENJELAJAH ILMU"; numStars = 2; }
+            else { rank = "PEJUANG ILMU"; numStars = 1; }
+
+            document.getElementById('rank-title').innerText = rank;
+            
+            for(let i=0; i<3; i++) {
+                const color = i < numStars ? "#FFD700" : "#4b5563";
+                starsHTML += `<svg width="50" height="50" viewBox="0 0 24 24" fill="${color}" stroke="${i<numStars?'#fff':'#333'}" stroke-width="1"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
+            }
+            document.getElementById('stars-container').innerHTML = starsHTML;
+        }
+
+        // --- 6. MEDIAPIPE HAND TRACKING ---
+        const videoElement = document.querySelector('.input_video');
+        const cursorElement = document.getElementById('hand-cursor');
+        const camDot = document.getElementById('cam-dot');
+        const camText = document.getElementById('cam-text');
+        
+        let hoveredElement = null;
+        let lastFistTime = 0;
+        let handsInit = false;
+
+        function updateCamStatus(status, text) {
+            camText.innerText = text;
+            if(status) {
+                camDot.classList.remove('inactive'); camDot.classList.add('active');
+            } else {
+                camDot.classList.remove('active'); camDot.classList.add('inactive');
+            }
+        }
+
+        async function initWebcam() {
+            if(handsInit) return;
+            try {
+                // Initialize Hands
+                const hands = new Hands({locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                }});
+                
+                hands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.6,
+                    minTrackingConfidence: 0.6
+                });
+                
+                hands.onResults(onResults);
+                
+                // Initialize Camera
+                const camera = new Camera(videoElement, {
+                    onFrame: async () => { await hands.send({image: videoElement}); },
+                    width: 640, height: 480
+                });
+                
+                await camera.start();
+                handsInit = true;
+                updateCamStatus(true, "TANGAN DIKESAN");
+            } catch(e) {
+                console.warn("Camera failed or denied. Fallback to Touch/Mouse.", e);
+                updateCamStatus(false, "MOD SENTUH");
+                cursorElement.style.display = 'none';
+            }
+        }
+
+        function onResults(results) {
+            if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+                cursorElement.style.display = 'none';
+                clearHover();
+                return;
+            }
+
+            cursorElement.style.display = 'block';
+            const landmarks = results.multiHandLandmarks[0];
+            
+            // Map coordinates (Mirror X)
+            // Use index finger MCP (5) or Palm center (9) for cursor pos
+            const rawX = 1 - landmarks[9].x; 
+            const rawY = landmarks[9].y;
+            
+            // Smooth positioning and map to screen
+            const screenX = rawX * width;
+            const screenY = rawY * height;
+            
+            cursorElement.style.left = screenX + 'px';
+            cursorElement.style.top = screenY + 'px';
+
+            // Detect Fist (Check if fingertips are below PIP joints in Y axis relatively, or distance based)
+            // Simpler robust heuristic: distance from wrist(0) to fingertips (8, 12, 16, 20) vs MCP (5, 9, 13, 17)
+            let isFist = true;
+            for(let i=8; i<=20; i+=4) {
+                // if fingertip is further away from wrist than MCP, hand is open
+                const tipDist = Math.hypot(landmarks[i].x - landmarks[0].x, landmarks[i].y - landmarks[0].y);
+                const mcpDist = Math.hypot(landmarks[i-3].x - landmarks[0].x, landmarks[i-3].y - landmarks[0].y);
+                if(tipDist > mcpDist + 0.05) { // adding slight tolerance
+                    isFist = false;
+                    break;
+                }
+            }
+
+            if(isFist) {
+                cursorElement.classList.add('fist');
+                handleFistAction(screenX, screenY);
+            } else {
+                cursorElement.classList.remove('fist');
+                handleHoverAction(screenX, screenY);
+            }
+        }
+
+        function getElementAtPos(x, y) {
+            // Hide cursor temporarily to use elementFromPoint
+            cursorElement.style.pointerEvents = 'none';
+            const els = document.elementsFromPoint(x, y);
+            for(let el of els) {
+                if(el.classList.contains('platform') && !isAnswering) return el;
+                if(el.classList.contains('btn-3d')) return el;
+            }
+            return null;
+        }
+
+        function handleHoverAction(x, y) {
+            if(isAnswering) { clearHover(); return; }
+            const el = getElementAtPos(x, y);
+            
+            if(el !== hoveredElement) {
+                clearHover();
+                hoveredElement = el;
+                if(hoveredElement) {
+                    hoveredElement.classList.add('hovered');
+                    if(hoveredElement.classList.contains('btn-3d')) hoveredElement.classList.add('sim-active');
+                    sfx.hover();
+                }
+            }
+        }
+
+        function clearHover() {
+            if(hoveredElement) {
+                hoveredElement.classList.remove('hovered');
+                hoveredElement.classList.remove('sim-active');
+                hoveredElement = null;
+            }
+        }
+
+        function handleFistAction(x, y) {
+            const now = Date.now();
+            if(now - lastFistTime < 1000) return; // Debounce 1 second
+            
+            const el = getElementAtPos(x, y);
+            if(el) {
+                lastFistTime = now;
+                sfx.zap();
+                
+                // Shoot lightning from hand to element center
+                const rect = el.getBoundingClientRect();
+                const elCx = rect.left + rect.width/2;
+                const elCy = rect.top + rect.height/2;
+                lightnings.push(new Lightning(x, y, elCx, elCy));
+
+                // Trigger action after short delay for effect
+                setTimeout(() => {
+                    if(el.classList.contains('platform')) {
+                        const idx = parseInt(el.id.split('-')[1]);
+                        processAnswer(idx);
+                    } else if(el.classList.contains('btn-3d')) {
+                        el.click();
+                    }
+                }, 300);
+            }
+        }
+
+        // Initialize state on load
+        window.onload = () => {
+            resetGame(); // Prep data
+            switchScreen('menu'); // Ensure menu is showing
+        };
+
+    </script>
+</body>
+</html>
